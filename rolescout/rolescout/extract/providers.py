@@ -26,6 +26,10 @@ PRICES: dict[str, tuple[float, float]] = {
     "claude-sonnet-5-5": (2.0, 10.0),
     "claude-sonnet-5": (2.0, 10.0),
     "claude-haiku-4-5": (1.0, 5.0),
+    # Possible server-side refusal fallback targets.
+    "claude-opus-4-8": (5.0, 25.0),
+    "claude-opus-4-7": (5.0, 25.0),
+    "claude-sonnet-4-6": (3.0, 15.0),
 }
 
 # Models that accept the server-side refusal fallback in its "default" form.
@@ -38,6 +42,10 @@ EFFORT_MODELS = {
 
 def cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
     price = PRICES.get(model)
+    if price is None:
+        # Served model IDs can carry a snapshot suffix; use the longest matching prefix.
+        matches = [k for k in PRICES if model.startswith(k)]
+        price = PRICES[max(matches, key=len)] if matches else None
     if not price:
         return 0.0
     return round(input_tokens / 1e6 * price[0] + output_tokens / 1e6 * price[1], 6)
@@ -126,7 +134,7 @@ class LocalProvider:
             if resp.status_code in (400, 422):
                 self._schema_supported = False
                 resp = None
-            else:
+            elif resp.status_code == 200:
                 self._schema_supported = True
         if resp is None:
             resp = self._post({**base, "response_format": {"type": "json_object"}})
@@ -135,7 +143,10 @@ class LocalProvider:
         if resp.status_code != 200:
             raise LLMError(f"Local model server returned HTTP {resp.status_code}: {resp.text[:300]}",
                            retryable=resp.status_code >= 500)
-        body = resp.json()
+        try:
+            body = resp.json()
+        except ValueError as exc:
+            raise LLMError("Local model server returned a non-JSON response", retryable=True) from exc
         try:
             text = body["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:

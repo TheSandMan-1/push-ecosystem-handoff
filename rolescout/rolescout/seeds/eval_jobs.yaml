@@ -160,3 +160,30 @@
   description: |
     Prepare 510(k) submissions. 2+ years in regulatory affairs.
   expect: {is_engineering: false}
+# --- Regression cases from the first independent code review
+- id: short-preferred-bullet-before-required
+  title: Mechanical Engineer
+  location: San Diego, CA
+  description: |
+    Qualifications
+    - Experience with SolidWorks preferred
+    - 5+ years of design experience required
+  expect: {seniority: senior, min_years: 5}
+- id: plus-as-and
+  title: Design Engineer
+  location: Irvine, CA
+  description: |
+    Bachelor's degree plus 5 years of experience in product design.
+  expect: {seniority: senior, min_years: 5}
+- id: is-a-plus-in-required-sentence
+  title: Quality Engineer
+  location: Irvine, CA
+  description: |
+    Requirements: 6+ years of experience in quality; ISO 13485 is a plus.
+  expect: {seniority: senior, min_years: 6}
+- id: help-desk-engineer
+  title: IT Support Engineer
+  location: San Diego, CA
+  description: |
+    Reset passwords, image laptops and run the help desk queue. 1+ years of experience.
+  expect: {is_engineering: false}

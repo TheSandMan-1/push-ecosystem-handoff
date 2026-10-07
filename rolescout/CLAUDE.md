@@ -26,8 +26,9 @@ Job search for early-career engineers. Python 3.11+, FastAPI, SQLAlchemy 2, Jinj
 
 ## Rules
 
-- Expensive work is per job, never per user. Don't add model calls to request handlers or matching.
-- A failed or suspicious fetch must never close jobs.
+- Expensive work is per job, never per user. Don't add model calls to request handlers or matching. (One deliberate exception: the admin-only Re-extract button on a single job.)
+- A failed, suspicious, or partial (page-capped) fetch must never close jobs. Do all HTTP before writing to the session.
+- Jobs without extracted facts are never shown or emailed.
 - Every POST needs CSRF (`check_csrf` dependency). Every page that shows user data needs `require_user`.
 - Claude API code goes through the official `anthropic` SDK. Sonnet 5.5 / Opus 5.5 / Fable 5.1 calls use `client.beta.messages.create(..., betas=["server-side-fallback-2026-07-01"], fallbacks="default")`. Don't send `budget_tokens`, `temperature`, or forced `tool_choice` to those models.
 - New extraction behavior ships with an `eval_jobs.yaml` case.

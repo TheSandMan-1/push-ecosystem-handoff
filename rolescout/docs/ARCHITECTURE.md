@@ -19,7 +19,8 @@ company boards ──ingest──▶ jobs ──extract──▶ job_facts ─�
 
 - One connector per applicant tracking system. Each turns a board into `RawJob`s.
 - Workday and SmartRecruiters list endpoints have no descriptions. Details are fetched lazily, only for **new** jobs whose title passes `title_worth_reading`. That keeps a 2,000-job Workday board to a few hundred detail requests on the first run and almost none after.
-- **Liveness.** A job closes only after it is missing from `close_after_missed_runs` (default 2) *successful* fetches. A failed fetch never closes anything. A board that suddenly returns zero jobs when it had 5+ open is treated as an outage. A job that reappears is reopened.
+- **Liveness.** A job closes only after it is missing from `close_after_missed_runs` (default 2) *successful* fetches. A failed fetch never closes anything. A board that suddenly returns zero jobs when it had 5+ open is treated as an outage. A job that reappears is reopened. A capped page walk (huge Workday or SmartRecruiters boards) is marked partial and skips the close pass.
+- All HTTP for a board (list and details) finishes before its database rows are written, so ingest never holds the SQLite write lock while waiting on the network.
 - `content_hash` (title + location + description) drives re-extraction when a posting is edited.
 
 ### Extract (`extract/`)
@@ -31,6 +32,7 @@ company boards ──ingest──▶ jobs ──extract──▶ job_facts ─�
 
 ### Match (`matching.py`)
 
+- Jobs that haven't been analyzed yet are excluded (`pending`), never shown.
 - Each job is either a match with a score and reasons, or excluded with exactly one reason. That is what powers "We hid 412 postings: 230 too senior..." and the Filtered-out tab, which lets users audit the filter.
 - Mid-level titles still pass when the required years are within the user's experience ("Asks for only 2 yrs").
 - Discipline mismatch is a penalty, not an exclusion, because postings often list several fields.

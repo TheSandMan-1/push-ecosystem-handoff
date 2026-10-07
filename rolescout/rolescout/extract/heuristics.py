@@ -104,7 +104,16 @@ NOT_EXPERIENCE_CTX = re.compile(
     r"\d+\s*\+?\s*years? (?:of (?:innovation|service|history|excellence))|tenure|vest",
     re.I,
 )
-PREFERRED_CTX = re.compile(r"prefer|nice to have|bonus|desired|plus\b|ideal|advantage", re.I)
+PREFERRED_CTX = re.compile(r"prefer|nice to have|bonus|desired|\ba plus\b|ideal|advantage", re.I)
+# A sentence that says "required"/"must"/"minimum" is a requirement even if it also says "is a plus".
+REQUIRED_CTX = re.compile(r"\b(required|requires?|must|minimum|at least|mandatory)\b", re.I)
+HEADING = re.compile(
+    r"^(about (the )?(role|you|us|the team)|what you('ll| will) (need|bring|do)|who you are|you have|"
+    r"responsibilities|key responsibilities|duties|"
+    r"(basic|minimum|required|preferred|desired|additional|bonus|nice[- ]to[- ]have|ideal)?\s*"
+    r"(qualifications|requirements|skills|experience|skills and experience|education)?)\s*:?$",
+    re.I,
+)
 REQUIRED_HEAD = re.compile(r"(required|minimum|basic|must have|requirements|qualifications|what you.ll need|you have)", re.I)
 NO_EXPERIENCE = re.compile(
     r"\b(no (?:prior )?experience (?:is )?(?:required|necessary)|new (?:college )?grad(?:uate)?s? (?:are )?(?:welcome|encouraged)|"
@@ -137,7 +146,10 @@ def extract_years(text: str | None) -> tuple[int | None, int | None, bool]:
     in_preferred_section = False
     for sent in _sentences(text):
         low = sent.lower()
-        is_heading = len(sent) < 60 and not re.search(r"\d|\byears?\b|\byrs?\b", low)
+        is_heading = (
+            len(sent) < 60 and not re.search(r"\d|\byears?\b|\byrs?\b", low)
+            and (sent.rstrip().endswith(":") or bool(HEADING.match(sent.strip())))
+        )
         if is_heading:
             if PREFERRED_CTX.search(low):
                 in_preferred_section = True
@@ -162,7 +174,12 @@ def extract_years(text: str | None) -> tuple[int | None, int | None, bool]:
         found = [n for n in found if 0 <= n <= 25]
         if not found:
             continue
-        bucket = preferred if (in_preferred_section or PREFERRED_CTX.search(low)) else required
+        if REQUIRED_CTX.search(low):
+            bucket = required
+        elif in_preferred_section or PREFERRED_CTX.search(low):
+            bucket = preferred
+        else:
+            bucket = required
         bucket.append(min(found))
     no_exp = bool(NO_EXPERIENCE.search(text))
     return (min(required) if required else None, min(preferred) if preferred else None, no_exp)
@@ -290,6 +307,8 @@ def classify_role(title: str, description: str, industry_hint: str | None) -> tu
                 return False, family, "technician"
             if family == "sales_engineering":
                 return False, family, "sales"
+            if family == "support":
+                return False, family, "support"
             if hospitality and family in {"manufacturing_process", "other_engineering"}:
                 return False, "facilities_maintenance", "hospitality"
             return True, family, family
@@ -340,6 +359,9 @@ def extract(title: str, description: str | None, location: str | None = None,
         seniority = "entry"
     if title_level != "unknown":
         confidence += 0.2
+    if req_years is None and pref_years is not None and pref_years >= 5 and seniority in {"unknown", "entry"}:
+        facts.red_flags.append(f"Prefers {pref_years}+ years of experience")
+        confidence -= 0.15
     facts.seniority = seniority
 
     # Disciplines
@@ -377,6 +399,8 @@ def extract(title: str, description: str | None, location: str | None = None,
     # Work mode
     loc = location or ""
     wt = (extra.get("workplace_type") or extra.get("remote_type") or "").lower()
+    if wt:
+        sig["work_mode_source"] = "ats"
     if "remote" in wt or re.search(r"\bremote\b", loc, re.I):
         facts.work_mode = "remote"
     elif "hybrid" in wt or re.search(r"\bhybrid\b", loc, re.I):

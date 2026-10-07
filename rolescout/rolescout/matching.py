@@ -30,6 +30,7 @@ EXCLUSION_LABELS = {
     "keyword": "Has a keyword you blocked",
     "salary": "Pays below your floor",
     "hidden": "You hid it",
+    "pending": "Still being analyzed",
 }
 
 STATE_NAMES = {
@@ -110,10 +111,8 @@ def evaluate(job: Job, facts: JobFacts | None, profile: Profile, *, user_status:
     if job.company_name.lower() in {c.lower() for c in profile.muted_companies}:
         return exclude("muted_company")
     if facts is None:
-        # Not extracted yet: show conservatively only if the title is clearly fine.
-        m.cautions.append("Details still being analyzed")
-        m.score = 40
-        return m
+        # Not analyzed yet. Never show it: an unread posting could be anything.
+        return exclude("pending")
 
     if profile.require_engineering and not facts.is_engineering:
         return exclude("not_engineering")

@@ -96,5 +96,5 @@ Every model call is logged with tokens and dollars. `/admin` shows cost per job 
 ## Tests
 
 ```bash
-python -m pytest -q     # 81 tests: connectors, liveness, tiers, matching, auth/CSRF, digests
+python -m pytest -q     # 93 tests: connectors, liveness, tiers, matching, auth/CSRF, digests, review regressions
 ```

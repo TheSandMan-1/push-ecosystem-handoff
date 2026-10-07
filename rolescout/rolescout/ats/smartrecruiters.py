@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import httpx
 
-from .base import FetchError, RawJob, SourceSpec, get_json, html_to_text, parse_iso
+from .base import FetchError, JobList, RawJob, SourceSpec, get_json, html_to_text, parse_iso
 
 LIST_API = "https://api.smartrecruiters.com/v1/companies/{token}/postings"
 DETAIL_API = "https://api.smartrecruiters.com/v1/companies/{token}/postings/{id}"
@@ -17,8 +17,9 @@ class SmartRecruitersConnector:
     name = "smartrecruiters"
 
     def fetch(self, spec: SourceSpec, client: httpx.Client) -> list[RawJob]:
-        jobs: list[RawJob] = []
+        jobs = JobList()
         offset = 0
+        total = 0
         while offset < MAX_JOBS:
             data = get_json(
                 client, LIST_API.format(token=spec.token), params={"limit": PAGE, "offset": offset}
@@ -44,8 +45,11 @@ class SmartRecruitersConnector:
                     )
                 )
             offset += len(page)
-            if not page or offset >= int(data.get("totalFound") or 0):
+            total = int(data.get("totalFound") or 0)
+            if not page or offset >= total:
                 break
+        if total and offset < total:
+            jobs.complete = False
         return jobs
 
     def fetch_detail(self, spec: SourceSpec, job: RawJob, client: httpx.Client) -> RawJob:

@@ -39,6 +39,7 @@ FACT_FIELDS = [
     "summary", "red_flags", "confidence",
 ]
 EXPLICIT_TITLE_LEVELS = {"intern", "senior", "lead_manager"}
+NOT_ENGINEERING_RULES = {"facilities", "hospitality", "recruiter", "technician", "sales", "support"}
 
 
 @dataclass
@@ -70,10 +71,14 @@ def apply_guardrails(rules: Facts, facts: Facts) -> Facts:
     title_level = rules.signals.get("title_seniority")
     if title_level in EXPLICIT_TITLE_LEVELS:
         facts.seniority = title_level
-    if rules.signals.get("role_rule") in {"facilities", "recruiter", "technician", "sales"}:
+    if title_level == "mid" and facts.seniority in {"entry", "intern", "unknown"}:
+        facts.seniority = "mid"  # an explicit "II" never reads as entry level
+    if rules.signals.get("role_rule") in NOT_ENGINEERING_RULES:
         facts.is_engineering = False
         facts.role_family = rules.role_family
     facts.requires_clearance = facts.requires_clearance or rules.requires_clearance
+    if rules.signals.get("work_mode_source") == "ats" and rules.work_mode != "unknown":
+        facts.work_mode = rules.work_mode
     if rules.salary_min and rules.salary_max:
         facts.salary_min, facts.salary_max = rules.salary_min, rules.salary_max
     if title_level == "entry" and facts.min_years is not None and facts.min_years >= 3:
@@ -195,7 +200,7 @@ class Extractor:
     # -------------------------------------------------------------- one job
     def process(self, session: Session, job: Job, stats: ExtractStats, *, force_verify: bool = False) -> JobFacts:
         industry_hint = job.source.industry if job.source else None
-        rules = heuristics.extract(job.title, job.description, job.location, industry_hint)
+        rules = heuristics.extract(job.title, job.description, job.location, industry_hint, job.extra or {})
         facts = Facts(**{k: getattr(rules, k) for k in FACT_FIELDS})
         facts.signals = rules.signals
         extractor_label = "rules"

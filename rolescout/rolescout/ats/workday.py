@@ -12,7 +12,7 @@ from __future__ import annotations
 import httpx
 
 from ..config import get_settings
-from .base import FetchError, RawJob, SourceSpec, get_json, html_to_text, parse_iso, parse_relative_posted, post_json
+from .base import FetchError, JobList, RawJob, SourceSpec, get_json, html_to_text, parse_iso, parse_relative_posted, post_json
 
 
 def _tenant(host: str) -> str:
@@ -33,7 +33,7 @@ class WorkdayConnector:
         limit = settings.workday_page_limit
         offset = 0
         total: int | None = None
-        jobs: list[RawJob] = []
+        jobs = JobList()
         seen: set[str] = set()
         while offset < settings.workday_max_jobs:
             data = post_json(
@@ -66,6 +66,10 @@ class WorkdayConnector:
             offset += limit
             if not postings or offset >= (total or 0):
                 break
+        else:
+            jobs.complete = False  # hit workday_max_jobs before the end of the board
+        if total and len(seen) < total and offset < total:
+            jobs.complete = False
         return jobs
 
     def fetch_detail(self, spec: SourceSpec, job: RawJob, client: httpx.Client) -> RawJob:

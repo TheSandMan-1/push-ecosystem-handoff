@@ -47,6 +47,13 @@ class SourceSpec:
     workday_site: str | None = None
 
 
+class JobList(list):
+    """A fetch result. `complete=False` means the board was only partly read
+    (hit a page cap), so jobs missing from it must not be counted as closed."""
+
+    complete: bool = True
+
+
 class Connector(Protocol):
     name: str
 

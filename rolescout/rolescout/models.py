@@ -78,6 +78,8 @@ class Job(Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     missed_runs: Mapped[int] = mapped_column(Integer, default=0)
     content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Structured metadata from the ATS (workplace type, salary range, compensation text).
+    extra: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     source: Mapped[Source] = relationship(back_populates="jobs")
     facts: Mapped["JobFacts | None"] = relationship(

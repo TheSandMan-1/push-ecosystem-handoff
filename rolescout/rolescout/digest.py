@@ -51,7 +51,8 @@ def build_digest(session: Session, user: User, settings: Settings | None = None,
     settings = settings or get_settings()
     feed = build_feed(session, user.id, user.profile)
     sent = set() if preview else _already_sent(session, user.id)
-    fresh = [m for m in feed.matches if m.job.id not in sent and m.user_status is None][:MAX_ITEMS]
+    fresh = [m for m in feed.matches
+             if m.facts is not None and m.job.id not in sent and m.user_status is None][:MAX_ITEMS]
     count = len(fresh)
     subject = (
         f"{count} new {'role' if count == 1 else 'roles'} that fit you" if count else "No new matches this time"

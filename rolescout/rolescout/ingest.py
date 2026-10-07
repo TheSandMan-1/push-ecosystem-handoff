@@ -107,6 +107,11 @@ def _fetch_details(source: Source, raws: list[RawJob], client: httpx.Client, res
                 result.details_fetched += 1
 
 
+def _clean_extra(extra: dict | None) -> dict | None:
+    cleaned = {k: v for k, v in (extra or {}).items() if v not in (None, "", {}, [])}
+    return cleaned or None
+
+
 def ingest_source(session: Session, source: Source, client: httpx.Client, settings: Settings) -> SourceResult:
     result = SourceResult(slug=source.slug, ok=False)
     try:
@@ -116,19 +121,24 @@ def ingest_source(session: Session, source: Source, client: httpx.Client, settin
         result.error = str(exc)
         return result
     now = utcnow()
-    source.last_fetched_at = now
+    # All network I/O happens before this source's rows are touched, so no SQLite
+    # write lock is held while we wait on HTTP (logins and saves stay responsive).
     try:
         raws = connector.fetch(spec_for(source), client)
     except (FetchError, ValueError) as exc:
+        source.last_fetched_at = now
         source.last_status, source.last_error = "error", str(exc)[:1000]
         result.error = str(exc)
         return result
+    complete = getattr(raws, "complete", True)
 
-    existing: dict[str, Job] = {
-        j.external_id: j for j in session.scalars(select(Job).where(Job.source_id == source.id))
-    }
+    with session.no_autoflush:
+        existing: dict[str, Job] = {
+            j.external_id: j for j in session.scalars(select(Job).where(Job.source_id == source.id))
+        }
     open_before = sum(1 for j in existing.values() if j.closed_at is None)
     if not raws and open_before >= SUSPICIOUS_EMPTY_MIN:
+        source.last_fetched_at = now
         msg = f"Board returned 0 jobs but had {open_before} open; treating as an outage, nothing closed"
         source.last_status, source.last_error = "error", msg
         result.error = msg
@@ -148,7 +158,10 @@ def ingest_source(session: Session, source: Source, client: httpx.Client, settin
             and (ext_id not in existing or not existing[ext_id].description
                  or existing[ext_id].title != raw.title)
         ]
+        # End the read transaction before the slow HTTP phase.
+        session.commit()
         _fetch_details(source, need, client, result)
+    source.last_fetched_at = now
 
     for ext_id, raw in unique.items():
         job = existing.get(ext_id)
@@ -166,6 +179,7 @@ def ingest_source(session: Session, source: Source, client: httpx.Client, settin
                 first_seen_at=now,
                 last_seen_at=now,
                 content_hash=raw.content_hash(),
+                extra=_clean_extra(raw.extra),
             )
             session.add(job)
             result.new += 1
@@ -187,10 +201,14 @@ def ingest_source(session: Session, source: Source, client: httpx.Client, settin
             result.updated += 1
         job.url = raw.url[:1000]
         job.company_name = source.company_name
+        if raw.extra:
+            job.extra = _clean_extra(raw.extra)
         if raw.posted_at and not job.posted_at:
             job.posted_at = raw.posted_at
 
     for ext_id, job in existing.items():
+        if not complete:
+            break  # partial read: absence proves nothing
         if ext_id in unique or job.closed_at is not None:
             continue
         job.missed_runs = (job.missed_runs or 0) + 1
@@ -198,7 +216,8 @@ def ingest_source(session: Session, source: Source, client: httpx.Client, settin
             job.closed_at = now
             result.closed += 1
 
-    source.last_status, source.last_error = "ok", None
+    source.last_status = "ok"
+    source.last_error = None if complete else "Board only partly read (page cap); closures skipped this run"
     source.last_job_count = result.fetched
     result.ok = True
     return result
