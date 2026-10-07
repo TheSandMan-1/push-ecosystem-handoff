@@ -1,0 +1,11 @@
+__pycache__/
+*.egg-info/
+.venv/
+venv/
+*.db
+*.db-shm
+*.db-wal
+.env
+.rolescout_secret
+outbox/
+.pytest_cache/

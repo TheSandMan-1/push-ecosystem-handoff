@@ -1,0 +1,38 @@
+# Starter company boards for the first market: early-career engineers in Southern California.
+#
+# IMPORTANT: these URLs were written from memory in a build environment that could not
+# reach the job boards, so none has been verified. Run `rolescout check-sources` once on
+# a machine with internet access; fix or delete the ones that fail. To find a URL, open the
+# company's careers page, click into the job list, and copy the address bar.
+#
+# Supported systems: Greenhouse, Lever, Ashby, Workday (*.myworkdayjobs.com), SmartRecruiters.
+- company: Dexcom
+  url: https://dexcom.wd1.myworkdayjobs.com/Dexcom
+  industry: medical_devices
+- company: BD
+  url: https://bdx.wd1.myworkdayjobs.com/EXTERNAL_CAREER_SITE_USA
+  industry: medical_devices
+- company: ResMed
+  url: https://resmed.wd3.myworkdayjobs.com/ResMed_External_Careers
+  industry: medical_devices
+- company: Edwards Lifesciences
+  url: https://edwards.wd5.myworkdayjobs.com/EdwardsCareers
+  industry: medical_devices
+- company: Medtronic
+  url: https://medtronic.wd1.myworkdayjobs.com/MedtronicCareers
+  industry: medical_devices
+- company: Illumina
+  url: https://illumina.wd1.myworkdayjobs.com/illumina-careers
+  industry: biotech_tools
+- company: Stryker
+  url: https://stryker.wd1.myworkdayjobs.com/StrykerCareers
+  industry: medical_devices
+- company: Abbott
+  url: https://abbott.wd5.myworkdayjobs.com/abbottcareers
+  industry: medical_devices
+- company: SpaceX
+  url: https://boards.greenhouse.io/spacex
+  industry: aerospace
+- company: Anduril
+  url: https://boards.greenhouse.io/andurilindustries
+  industry: defense

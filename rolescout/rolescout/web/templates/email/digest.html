@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{ subject }}</title></head>
+<body style="margin:0;padding:0;background:#f5f6f8;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#101828;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f6f8;padding:24px 12px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
+  <tr><td style="padding:0 4px 16px;font-weight:700;font-size:17px;color:#0e7c66;">RoleScout</td></tr>
+  <tr><td style="background:#ffffff;border:1px solid #e4e7ec;border-radius:12px;padding:24px;">
+    <h1 style="margin:0 0 6px;font-size:22px;line-height:1.25;">{% if user.name %}{{ user.name }}, {% endif %}{{ subject|lower if user.name else subject }}</h1>
+    <p style="margin:0 0 20px;color:#667085;font-size:14px;line-height:1.5;">Checked against each company's own careers system. We filtered out {{ hidden_total }} postings that didn't fit{% if exclusion_counts %} ({% for code, n in exclusion_counts %}{{ n }} {{ {'too_senior':'too senior','not_engineering':'not real engineering','too_many_years':'asked for too many years','location':'wrong location','clearance':'needed clearance','excluded_family':'role types you excluded','level_mismatch':'wrong level','keyword':'blocked keyword','salary':'pay too low','muted_company':'muted company'}.get(code, code) }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}.</p>
+    {% for m in matches %}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e4e7ec;">
+      <tr><td style="padding:16px 0;">
+        <a href="{{ m.job.url }}" style="font-size:16px;font-weight:700;color:#101828;text-decoration:none;">{{ m.job.title }}</a>
+        <div style="color:#667085;font-size:13px;margin-top:3px;">{{ m.job.company_name }}{% if m.job.location %} · {{ m.job.location|truncate(50) }}{% endif %}{% if m.facts and (m.facts.salary_min or m.facts.salary_max) %} · {{ salary_range(m.facts.salary_min, m.facts.salary_max) }}{% endif %}</div>
+        {% if m.facts and m.facts.summary %}<div style="color:#344054;font-size:14px;margin-top:8px;line-height:1.45;">{{ m.facts.summary }}</div>{% endif %}
+        <div style="margin-top:8px;">
+          {% for r in m.reasons[:4] %}<span style="display:inline-block;background:#e3f4ef;color:#0a5f4e;font-size:12px;font-weight:600;padding:3px 8px;border-radius:99px;margin:0 4px 4px 0;">&#10003; {{ r }}</span>{% endfor %}
+          {% for c in m.cautions[:2] %}<span style="display:inline-block;background:#fef3e2;color:#b54708;font-size:12px;font-weight:600;padding:3px 8px;border-radius:99px;margin:0 4px 4px 0;">! {{ c }}</span>{% endfor %}
+        </div>
+        <a href="{{ m.job.url }}" style="display:inline-block;margin-top:8px;background:#0e7c66;color:#ffffff;font-weight:600;font-size:13px;padding:8px 14px;border-radius:8px;text-decoration:none;">View &amp; apply</a>
+      </td></tr>
+    </table>
+    {% else %}
+    <p style="color:#667085;">No new matches since last time. We'll keep watching.</p>
+    {% endfor %}
+    <p style="margin:20px 0 0;"><a href="{{ base_url }}/app" style="color:#0e7c66;font-weight:600;text-decoration:none;">See all your matches &rarr;</a></p>
+  </td></tr>
+  <tr><td style="padding:16px 4px;color:#98a2b3;font-size:12px;line-height:1.5;">
+    You're getting this because you signed up for RoleScout. <a href="{{ base_url }}/app/profile" style="color:#98a2b3;">Change preferences</a> · <a href="{{ base_url }}/unsubscribe/{{ user.unsubscribe_token }}" style="color:#98a2b3;">Unsubscribe</a>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>

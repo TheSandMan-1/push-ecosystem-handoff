@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Admin · RoleScout{% endblock %}
+{% block content %}
+<div class="container page">
+  <div class="page-head">
+    <div><h1>Operations</h1><p>Pipeline health, data quality and unit economics.</p></div>
+    <div class="spacer"></div>
+    <form method="post" action="/admin/run/all" class="row"><input type="hidden" name="csrf_token" value="{{ csrf }}">
+      <button class="btn btn-primary" {{ 'disabled' if runner.running }}>{{ 'Running ' ~ runner.running ~ '…' if runner.running else 'Run full pipeline' }}</button>
+      <button class="btn" formaction="/admin/run/ingest" {{ 'disabled' if runner.running }}>Ingest</button>
+      <button class="btn" formaction="/admin/run/extract" {{ 'disabled' if runner.running }}>Extract</button>
+      <button class="btn" formaction="/admin/run/digest" {{ 'disabled' if runner.running }}>Send digests</button>
+    </form>
+  </div>
+  {% if runner.history %}<div class="card card-pad" style="margin-bottom:16px"><div class="panel-title">Background runs this session</div>{% for line in runner.history %}<div class="muted" style="font-size:.88rem">{{ line }}</div>{% endfor %}</div>{% endif %}
+
+  <div class="kpis">
+    <div class="card kpi"><div class="label">Open postings</div><div class="value">{{ kpi.open_jobs|number }}</div><div class="note">{{ kpi.new_week|number }} new · {{ kpi.closed_week|number }} closed this week</div></div>
+    <div class="card kpi"><div class="label">Users</div><div class="value">{{ kpi.users|number }}</div><div class="note">{{ kpi.new_users }} new · {{ kpi.active_users }} active this week</div></div>
+    <div class="card kpi"><div class="label">Model spend (all time)</div><div class="value">{{ kpi.total_cost|usd }}</div><div class="note">{{ kpi.cost_per_job|usd if kpi.cost_per_job is not none else 'n/a' }} per model-read job · {{ kpi.extracted_by_model|number }} jobs</div></div>
+    <div class="card kpi"><div class="label">Verifier agreement</div><div class="value">{{ '%d%%'|format(kpi.agreement_rate * 100) if kpi.agreement_rate is not none else 'n/a' }}</div><div class="note"><a href="/admin/review?status=corrected">{{ kpi.corrected }} corrected</a> · {{ kpi.agree }} agreed · <a href="/admin/review?status=error">{{ kpi.verify_errors }} errors</a></div></div>
+  </div>
+
+  <div class="grid-2" style="margin-top:16px">
+    <div class="card card-pad">
+      <div class="panel-title">Model tiers</div>
+      <dl class="facts">
+        <dt>Bulk extraction</dt><dd>{{ settings.extractor }}{% if settings.extractor != 'heuristic' %} · {{ settings.extractor_model }}{% endif %}</dd>
+        <dt>Verification</dt><dd>{{ settings.verifier }}{% if settings.verifier != 'none' %} · {{ settings.verifier_model }}{% endif %}</dd>
+        <dt>Verify when</dt><dd>disagreement, confidence &lt; {{ settings.verify_confidence_below }}, or {{ '%d%%'|format(settings.verify_sample_rate * 100) }} QA sample</dd>
+        <dt>Auto schedule</dt><dd>{{ 'every %d min'|format(settings.schedule_minutes) if settings.schedule_minutes else 'off' }}</dd>
+      </dl>
+    </div>
+    <div class="card card-pad">
+      <div class="panel-title">Open engineering roles by level</div>
+      {% set total = seniority_mix|sum(attribute=1) %}
+      <div class="mini-bars">
+        {% for sen, n in seniority_mix|sort(attribute=1, reverse=True) %}
+        <div class="mini-bar"><span>{{ seniorities.get(sen, sen) }}</span><div class="track"><span style="width: {{ (100 * n / (total or 1))|round|int }}%"></span></div><span class="num">{{ n|number }}</span></div>
+        {% else %}<p class="muted">No extracted jobs yet.</p>{% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title"><h2>Model usage</h2></div>
+  <div class="card table-wrap">
+    <table class="data">
+      <thead><tr><th>Purpose</th><th>Model</th><th class="num">Calls</th><th class="num">OK</th><th class="num">Input tok</th><th class="num">Output tok</th><th class="num">Cost</th><th class="num">Cost / call</th></tr></thead>
+      <tbody>
+      {% for purpose, model, calls, tin, tout, cost, ok in llm %}
+        <tr><td>{{ purpose }}</td><td><code>{{ model }}</code></td><td class="num">{{ calls|number }}</td><td class="num">{{ ok|number }}</td><td class="num">{{ (tin or 0)|number }}</td><td class="num">{{ (tout or 0)|number }}</td><td class="num">{{ (cost or 0)|usd(4) }}</td><td class="num">{{ ((cost or 0) / (calls or 1))|usd(5) }}</td></tr>
+      {% else %}<tr><td colspan="8" class="muted">No model calls yet. Extraction is running on rules only.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-title" id="sources"><h2>Company boards</h2><span class="muted">{{ sources|length }} total</span></div>
+  <div class="card card-pad" style="margin-bottom:12px">
+    <form method="post" action="/admin/sources" class="row" style="align-items:flex-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf }}">
+      <div style="flex:2;min-width:240px"><label for="url">Careers page URL</label><input id="url" type="url" name="url" required placeholder="https://jobs.lever.co/acme or https://acme.wd1.myworkdayjobs.com/External"></div>
+      <div style="flex:1;min-width:160px"><label for="company_name">Company</label><input id="company_name" type="text" name="company_name" required></div>
+      <div style="flex:1;min-width:140px"><label for="industry">Industry <span class="hint">(optional)</span></label><input id="industry" type="text" name="industry" placeholder="medical_devices"></div>
+      <button class="btn btn-primary">Add board</button>
+    </form>
+    <p class="muted" style="margin:10px 0 0;font-size:.85rem">Supported: Greenhouse, Lever, Ashby, Workday, SmartRecruiters. Paste the public careers URL; the job system is detected automatically.</p>
+  </div>
+  <div class="card table-wrap">
+    <table class="data">
+      <thead><tr><th>Company</th><th>System</th><th class="num">Open</th><th>Last check</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for s in sources %}
+        <tr>
+          <td><strong>{{ s.company_name }}</strong>{% if s.industry %}<br><span class="muted">{{ s.industry }}</span>{% endif %}</td>
+          <td><code>{{ s.ats }}</code><br><span class="muted" style="font-size:.8rem">{{ s.workday_site or s.token }}</span></td>
+          <td class="num">{{ open_by_source.get(s.id, 0)|number }}</td>
+          <td>{{ s.last_fetched_at|timeago if s.last_fetched_at else 'never' }}</td>
+          <td>{% if s.ats == 'demo' %}<span class="muted">fictional</span>{% elif not s.enabled %}<span class="pill-status">disabled</span>{% elif s.last_status == 'ok' %}<span class="pill-status pill-ok">ok · {{ s.last_job_count }}</span>{% elif s.last_status == 'error' %}<span class="pill-status pill-error" title="{{ s.last_error }}">error</span><div class="muted" style="font-size:.8rem;max-width:320px">{{ (s.last_error or '')|truncate(140) }}</div>{% else %}<span class="muted">pending</span>{% endif %}</td>
+          <td>{% if s.ats != 'demo' %}<form method="post" action="/admin/sources/{{ s.id }}/toggle"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn btn-sm">{{ 'Disable' if s.enabled else 'Enable' }}</button></form>{% else %}<span class="muted" style="font-size:.8rem">demo data</span>{% endif %}</td>
+        </tr>
+      {% else %}<tr><td colspan="6" class="muted">No boards yet. Add one above or run <code>rolescout seed</code>.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-2" style="margin-top:32px">
+    <div>
+      <div class="section-title" style="margin-top:0"><h2>Recent runs</h2></div>
+      <div class="card table-wrap"><table class="data"><thead><tr><th>Kind</th><th>Started</th><th>Status</th><th>Summary</th></tr></thead><tbody>
+      {% for r in runs %}
+        <tr><td>{{ r.kind }}</td><td>{{ r.started_at|timeago }}</td><td><span class="pill-status pill-{{ r.status }}">{{ r.status }}</span></td>
+        <td class="muted" style="font-size:.82rem">{% if r.kind == 'ingest' %}{{ r.stats.get('sources_ok', 0) }} ok / {{ r.stats.get('sources_failed', 0) }} failed · {{ r.stats.get('new', 0) }} new · {{ r.stats.get('closed', 0) }} closed{% elif r.kind == 'extract' %}{{ r.stats.get('processed', 0) }} jobs · {{ r.stats.get('llm_ok', 0) }} model · {{ r.stats.get('verified', 0) }} verified · ${{ r.stats.get('cost_usd', 0) }}{% elif r.kind == 'digest' %}{{ r.stats.get('sent', 0) }} sent{% endif %}{% if r.error %} {{ r.error|truncate(80) }}{% endif %}</td></tr>
+      {% else %}<tr><td colspan="4" class="muted">No runs yet.</td></tr>{% endfor %}
+      </tbody></table></div>
+    </div>
+    <div>
+      <div class="section-title" style="margin-top:0"><h2>Why users hide jobs</h2></div>
+      <div class="card card-pad">
+        <p class="muted" style="font-size:.86rem">Every hide is a labeled example of where the pipeline was wrong. "Too senior" and "not engineering" point at extraction bugs.</p>
+        {% set htotal = hide_reasons|sum(attribute=1) %}
+        <div class="mini-bars">
+        {% for reason, n in hide_reasons|sort(attribute=1, reverse=True) %}
+          <div class="mini-bar"><span>{{ hide_labels.get(reason, reason or 'unspecified') }}</span><div class="track"><span style="width: {{ (100 * n / (htotal or 1))|round|int }}%"></span></div><span class="num">{{ n }}</span></div>
+        {% else %}<p class="muted">No hides yet.</p>{% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Email digest · RoleScout{% endblock %}
+{% block content %}
+<div class="container page">
+  <div class="page-head"><div><h1>Your email digest</h1><p>This is what your next {{ user.profile.digest_frequency if user.profile.digest_frequency != 'off' else '' }} email would contain right now. Change frequency under <a href="/app/profile">Preferences</a>.</p></div></div>
+  <div class="detail-grid">
+    <iframe class="digest-frame" src="/app/digest/raw" title="Digest preview"></iframe>
+    <aside class="card card-pad">
+      <div class="panel-title">Recent sends</div>
+      {% for s in sends %}<p style="margin:0 0 8px">{{ s.sent_at|timeago }}: {{ s.job_count }} roles <span class="muted">({{ s.transport }})</span></p>{% else %}<p class="muted">No digests sent yet.</p>{% endfor %}
+    </aside>
+  </div>
+</div>
+{% endblock %}

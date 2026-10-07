@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container narrow page"><div class="card card-pad empty">
+{% if ok %}<h3>You're unsubscribed</h3><p>No more digest emails. Your account and matches are still here whenever you want them.</p>{% else %}<h3>Link not recognized</h3><p>That unsubscribe link is invalid or expired. You can change email settings under Preferences.</p>{% endif %}
+<a class="btn" href="/app/profile">Email settings</a></div></div>
+{% endblock %}

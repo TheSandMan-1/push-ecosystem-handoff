@@ -1,0 +1,12 @@
+# docker compose up -d   -> app on http://localhost:8000
+services:
+  app:
+    build: .
+    ports: ["8000:8000"]
+    env_file: [.env]
+    environment:
+      ROLESCOUT_SCHEDULE_MINUTES: "180"
+    volumes: ["rolescout-data:/data"]
+    restart: unless-stopped
+volumes:
+  rolescout-data:
