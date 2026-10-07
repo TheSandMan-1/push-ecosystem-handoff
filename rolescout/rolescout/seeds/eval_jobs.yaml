@@ -1,0 +1,162 @@
+# Hand-labeled postings for `rolescout eval`. Each case has the facts a careful human
+# would extract. Add every extraction mistake users report here; this file is how you
+# prove a prompt, rule or model change helped instead of hoping it did.
+- id: senior-in-body-only
+  title: Mechanical Design Engineer
+  location: San Diego, CA
+  description: |
+    You will design disposable surgical instruments.
+    Requirements:
+    - BS in Mechanical Engineering
+    - 8+ years of experience designing Class II medical devices
+    - Expert in SolidWorks
+  expect: {seniority: senior, min_years: 8, is_engineering: true}
+- id: new-grad-plain
+  title: Product Development Engineer
+  location: Carlsbad, CA
+  description: |
+    Ideal for recent graduates. BS in Biomedical or Mechanical Engineering required.
+    No prior industry experience required; internships and senior design projects count.
+  expect: {seniority: entry, min_years: 0, is_engineering: true}
+- id: preferred-not-required
+  title: Quality Engineer
+  location: Irvine, CA
+  description: |
+    Basic Qualifications
+    - Bachelor's degree in engineering
+    - 1+ years of experience in quality or manufacturing (co-op counts)
+    Preferred Qualifications
+    - 5+ years in medical devices
+    - ASQ CQE
+  expect: {seniority: entry, min_years: 1, is_engineering: true}
+- id: degree-tiered-years
+  title: Systems Engineer
+  location: San Diego, CA
+  description: |
+    Required: Bachelor's degree with 2 years of related experience, or Master's degree with 0 years.
+  expect: {seniority: mid, min_years: 2, is_engineering: true}
+- id: hotel-chief-engineer
+  title: Chief Engineer
+  location: Coronado, CA
+  description: |
+    Lead the engineering department of our 400-room beachfront resort. Oversee HVAC, boilers,
+    pools and guest room maintenance. 5 years of hotel engineering experience.
+  expect: {is_engineering: false}
+- id: hotel-maintenance-engineer
+  title: Maintenance Engineer - Hotel
+  location: San Diego, CA
+  description: |
+    Perform repairs in guest rooms and public areas. Respond to guest requests. Must lift 50 lbs.
+  expect: {is_engineering: false}
+- id: factory-maintenance-engineer
+  title: Maintenance Engineer
+  location: Tijuana / San Diego
+  description: |
+    Lead preventive maintenance strategy for automated assembly lines in an ISO 13485 plant.
+    Bachelor's degree in Mechanical or Electrical Engineering required. 2+ years of experience
+    with PLCs and equipment reliability.
+  expect: {is_engineering: true, min_years: 2}
+- id: sales-engineer
+  title: Sales Engineer
+  location: Remote
+  description: |
+    Carry a quota with our account executives. Run technical demos. 2+ years of B2B sales.
+  expect: {is_engineering: false}
+- id: field-service-travel
+  title: Field Service Engineer I
+  location: Los Angeles, CA
+  description: |
+    Install and repair imaging systems at hospitals. Travel up to 80%. Associate's degree or
+    equivalent military training; BS in Biomedical Engineering a plus. 0-2 years of experience.
+  expect: {seniority: entry, is_engineering: true}
+- id: entry-title-senior-reqs
+  title: Junior Mechanical Engineer
+  location: Long Beach, CA
+  description: |
+    Minimum Requirements: 5 years of experience designing aerostructures; Active Secret clearance.
+  expect: {seniority: senior, min_years: 5, requires_clearance: true}
+- id: clearance-obtain
+  title: Electrical Engineer I
+  location: San Diego, CA
+  description: |
+    BSEE required. 0-2 years of experience. Must be able to obtain a DoD Secret clearance.
+  expect: {seniority: entry, requires_clearance: true, is_engineering: true}
+- id: roman-ii
+  title: Manufacturing Engineer II
+  location: Irvine, CA
+  description: |
+    BS in engineering and 3-5 years of manufacturing engineering experience.
+  expect: {seniority: mid, min_years: 3, is_engineering: true}
+- id: vv-not-level-five
+  title: Test Engineer, V&V
+  location: San Diego, CA
+  description: |
+    Requirements: BS in Biomedical Engineering and 1-3 years of experience writing test protocols.
+  expect: {seniority: entry, min_years: 1, is_engineering: true}
+- id: company-age-not-experience
+  title: Associate Engineer, Process
+  location: Oceanside, CA
+  description: |
+    For over 40 years we have served patients worldwide. Bachelor's in Chemical Engineering.
+    0-1 years of experience.
+  expect: {seniority: entry, min_years: 0, is_engineering: true}
+- id: word-number-years
+  title: Reliability Engineer
+  location: San Diego, CA
+  description: |
+    Minimum of three (3) years of experience in reliability engineering. BS required.
+  expect: {seniority: mid, min_years: 3, is_engineering: true}
+- id: recruiter
+  title: Engineering Recruiter
+  location: San Diego, CA
+  description: |
+    Recruit mechanical and electrical engineers. 2+ years of agency recruiting.
+  expect: {is_engineering: false}
+- id: technician
+  title: Engineering Technician II
+  location: Carlsbad, CA
+  description: |
+    Build test fixtures and run tests under engineering direction. Associate's degree. 2 years of experience.
+  expect: {is_engineering: false}
+- id: manager
+  title: Manager, Manufacturing Engineering
+  location: San Diego, CA
+  description: |
+    Lead a team of 8 engineers. 10+ years of experience including 3 in management.
+  expect: {seniority: lead_manager, is_engineering: true}
+- id: intern
+  title: R&D Engineering Intern
+  location: San Diego, CA
+  description: |
+    Summer internship for students pursuing a BS in Mechanical or Biomedical Engineering.
+  expect: {seniority: intern, is_engineering: true}
+- id: software-new-grad
+  title: Software Engineer I
+  location: Remote
+  description: |
+    BS in Computer Science. 0-2 years of experience with Python or TypeScript. Fully remote.
+  expect: {seniority: entry, is_engineering: true}
+- id: staff-software
+  title: Staff Software Engineer, Platform
+  location: Remote
+  description: |
+    10+ years building distributed systems.
+  expect: {seniority: senior, is_engineering: true}
+- id: hourly-pay
+  title: Associate Manufacturing Engineer
+  location: Vista, CA
+  description: |
+    Pay: $36.00 - $44.00 per hour. BS in Industrial or Mechanical Engineering. 0-2 years of experience.
+  expect: {seniority: entry, is_engineering: true}
+- id: no-level-no-years
+  title: Packaging Engineer
+  location: Irvine, CA
+  description: |
+    Design sterile barrier packaging. Bachelor's degree in Packaging or Mechanical Engineering.
+  expect: {is_engineering: true}
+- id: regulatory-specialist
+  title: Regulatory Affairs Specialist
+  location: Irvine, CA
+  description: |
+    Prepare 510(k) submissions. 2+ years in regulatory affairs.
+  expect: {is_engineering: false}

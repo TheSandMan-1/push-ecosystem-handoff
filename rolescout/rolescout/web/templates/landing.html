@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}RoleScout · Real, open engineering jobs at your level{% endblock %}
+{% block content %}
+<section class="hero container">
+  <div class="eyebrow">For new and early-career engineers</div>
+  <h1>Every job is <em>real</em>, <em>open</em>, and actually <em>at your level</em>.</h1>
+  <p class="lede">RoleScout reads postings straight from company careers systems, throws out the senior roles, the "engineer" jobs that aren't engineering, and the listings that closed weeks ago. You get the short list that's left.</p>
+  <div class="row">
+    {% if signups_open %}<a class="btn btn-primary btn-lg" href="/signup">Get my matches, free</a>{% endif %}
+    <a class="btn btn-lg" href="/login">Log in</a>
+  </div>
+</section>
+
+<div class="container">
+  <div class="stat-strip">
+    <div><b>{{ stats.open_jobs|number }}</b><span>open postings checked</span></div>
+    <div><b>{{ stats.companies|number }}</b><span>companies watched</span></div>
+    <div><b>{{ stats.entry|number }}</b><span>truly entry-level engineering roles</span></div>
+    <div><b>{{ stats.closed_week|number }}</b><span>closed listings caught this week</span></div>
+  </div>
+</div>
+
+<section class="section container">
+  <h2>What we filter out, so you don't have to</h2>
+  <p class="sub">Big job boards rank by engagement. We rank by fit, and we show you exactly why every hidden posting was hidden.</p>
+  <div class="grid-2">
+    <div class="card filtered-example"><div class="x">×</div><div><b>"Entry level" roles that ask for 5+ years</b><span>We read the requirements, not just the title.</span></div></div>
+    <div class="card filtered-example"><div class="x">×</div><div><b>Senior, staff and principal roles</b><span>Never shown to someone looking for their first job.</span></div></div>
+    <div class="card filtered-example"><div class="x">×</div><div><b>"Engineer" jobs that aren't engineering</b><span>Hotel building maintenance, sales, help desk.</span></div></div>
+    <div class="card filtered-example"><div class="x">×</div><div><b>Postings that already closed</b><span>We re-check each company's own system, and drop jobs the moment they disappear.</span></div></div>
+    <div class="card filtered-example"><div class="x">×</div><div><b>Clearance-required defense roles</b><span>Unless you want them. One toggle.</span></div></div>
+    <div class="card filtered-example"><div class="x">×</div><div><b>Wrong field, wrong city</b><span>Mechanical, electrical, biomedical, software. Your locations, or remote.</span></div></div>
+  </div>
+</section>
+
+<section class="section container">
+  <h2>How it works</h2>
+  <p class="sub">No resume upload, no spam, no recruiters. Three minutes of setup.</p>
+  <div class="grid-3">
+    <div class="card card-pad"><div class="step-num">1</div><h3>Tell us what you want</h3><p class="muted">Your field, your level, your cities. That's it.</p></div>
+    <div class="card card-pad"><div class="step-num">2</div><h3>We read every posting</h3><p class="muted">Rules plus AI pull out the real requirements: years, level, clearance, role type. A second, stronger model double-checks the hard calls.</p></div>
+    <div class="card card-pad"><div class="step-num">3</div><h3>You get the short list</h3><p class="muted">A clean feed and a weekly email with only the roles that fit, each with the reasons why.</p></div>
+  </div>
+</section>
+
+<section class="container">
+  <div class="card cta-band">
+    <h2>Stop scrolling past senior roles.</h2>
+    <p class="muted">Free while we're in early access.</p>
+    {% if signups_open %}<a class="btn btn-primary btn-lg" href="/signup">Create my free account</a>{% else %}<p>Signups are paused. Check back soon.</p>{% endif %}
+  </div>
+</section>
+
+<footer class="site-footer"><div class="container row"><span>RoleScout</span><span class="spacer"></span><span>Postings are read from public company careers pages. Always confirm details on the employer's site.</span></div></footer>
+{% endblock %}

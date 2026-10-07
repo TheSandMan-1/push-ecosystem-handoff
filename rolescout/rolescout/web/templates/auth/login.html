@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Log in · RoleScout{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="card auth-card">
+    <h1>Welcome back</h1>
+    {% if error %}<div class="form-error" role="alert">{{ error }}</div>{% endif %}
+    <form method="post" action="/login" class="stack" style="margin-top:16px">
+      <input type="hidden" name="csrf_token" value="{{ csrf }}">
+      <input type="hidden" name="next" value="{{ next or '/app' }}">
+      <div><label for="email">Email</label><input id="email" name="email" type="email" value="{{ email or '' }}" required autocomplete="email"></div>
+      <div><label for="password">Password</label><input id="password" name="password" type="password" required autocomplete="current-password"></div>
+      <button class="btn btn-primary btn-lg" style="width:100%">Log in</button>
+    </form>
+    <p class="muted" style="margin-top:16px">New here? <a href="/signup">Create an account</a></p>
+  </div>
+</div>
+{% endblock %}
