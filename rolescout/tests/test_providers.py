@@ -20,7 +20,8 @@ def test_local_provider_falls_back_to_json_object_when_schema_unsupported():
         return httpx.Response(200, json={"choices": [{"message": {"content": "Sure! {\"a\": 1}"}}],
                                          "usage": {"prompt_tokens": 10, "completion_tokens": 3}})
 
-    p = LocalProvider("http://local/v1", "qwen", client=httpx.Client(transport=httpx.MockTransport(handler)))
+    p = LocalProvider("http://local/v1", "qwen", api="openai",
+                      client=httpx.Client(transport=httpx.MockTransport(handler)))
     r = p.complete_json("sys", "user", SCHEMA, "x")
     assert r.data == {"a": 1} and r.input_tokens == 10 and r.cost_usd == 0
     p.complete_json("sys", "user", SCHEMA, "x")

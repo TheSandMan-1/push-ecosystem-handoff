@@ -10,6 +10,7 @@ prompt or rule change helped before shipping it.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
@@ -61,16 +62,23 @@ def extract_one(case: dict, provider: Provider | None, settings: Settings) -> tu
     return apply_guardrails(rules, facts_from_model(parsed)), result.cost_usd, result.latency_ms
 
 
-def run_eval(cases: list[dict], provider: Provider | None, settings: Settings) -> EvalReport:
+def run_eval(cases: list[dict], provider: Provider | None, settings: Settings,
+             on_case=None) -> EvalReport:
+    """on_case(index, total, case_id, status, seconds) runs after each case, for progress output."""
     label = f"{provider.name}:{provider.model}" if provider else "rules"
     report = EvalReport(label=label)
-    for case in cases:
+    total = len(cases)
+    for index, case in enumerate(cases, 1):
         report.cases += 1
+        started = time.monotonic()
         try:
             facts, cost, latency = extract_one(case, provider, settings)
         except LLMError as exc:
             report.errors.append(f"{case['id']}: {exc}")
+            if on_case:
+                on_case(index, total, case["id"], f"error: {exc}", time.monotonic() - started)
             continue
+        failures_before = len(report.failures)
         report.cost_usd += cost
         report.latency_ms += latency
         for name, expected in (case.get("expect") or {}).items():
@@ -86,6 +94,10 @@ def run_eval(cases: list[dict], provider: Provider | None, settings: Settings) -
                 report.correct += 1
             else:
                 report.failures.append(f"{case['id']}: {name} expected {expected!r}, got {got!r}")
+        if on_case:
+            wrong = len(report.failures) - failures_before
+            on_case(index, total, case["id"], "ok" if not wrong else f"{wrong} wrong",
+                    time.monotonic() - started)
     return report
 
 

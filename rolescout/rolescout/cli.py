@@ -196,8 +196,29 @@ def cmd_eval(args) -> int:
     settings = get_settings()
     kind = args.extractor or "heuristic"
     model = args.model or (settings.extractor_model if kind == "local" else settings.verifier_model)
+    from .extract.providers import LLMError
+
     provider = make_provider(kind, model, settings, effort=args.effort)
-    report = run_eval(load_cases(args.file), provider, settings)
+    cases = load_cases(args.file)
+    if provider is not None:
+        check = getattr(provider, "preflight", None)
+        if check is not None:
+            try:
+                for note in check():
+                    print(note)
+            except LLMError as exc:
+                print(f"Can't run the eval yet. {exc}")
+                return 2
+        print(f"Scoring {len(cases)} postings with {provider.name}:{provider.model}. "
+              "The first one loads the model and can take a minute.", flush=True)
+
+    def progress(index, total, case_id, status, seconds):
+        if provider is not None:
+            print(f"  [{index:>2}/{total}] {case_id:40} {status} ({seconds:.1f}s)", flush=True)
+
+    report = run_eval(cases, provider, settings, on_case=progress)
+    if provider is not None:
+        print()
     print(format_report(report))
     return 0 if not report.errors else 2
 

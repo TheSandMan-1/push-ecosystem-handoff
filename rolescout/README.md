@@ -8,25 +8,27 @@ RoleScout reads postings straight from company careers systems (Greenhouse, Leve
 
 ## Run it on your laptop (5 minutes)
 
-Needs Python 3.11+.
+Needs Python 3.11+. Commands in this README have no inline comments, so every block can be pasted straight into a Mac terminal (zsh treats `#` in pasted lines as an error).
 
 ```bash
 cd rolescout
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-rolescout demo          # fictional companies + a demo login
-rolescout serve         # http://localhost:8000
+rolescout demo
+rolescout serve
 ```
 
-Log in with `demo@rolescout.local` / `demo12345`. The demo user is an admin, so you also get `/admin`.
+`demo` loads fictional companies and a demo login; `serve` starts the app at http://localhost:8000. Log in with `demo@rolescout.local` / `demo12345`. The demo user is an admin, so you also get `/admin`.
 
 ## Point it at real companies
 
 ```bash
-rolescout seed               # loads the starter SoCal list in rolescout/seeds/sources.yaml
-rolescout check-sources      # test-fetches each board; fix or delete any that fail
-rolescout run                # ingest + extract
+rolescout seed
+rolescout check-sources
+rolescout run
 ```
+
+`seed` loads the starter SoCal list in `rolescout/seeds/sources.yaml`, `check-sources` test-fetches each board so you can fix or delete the ones that fail, and `run` fetches and analyzes every posting.
 
 Add any company by pasting its careers URL (in the admin page, or):
 
@@ -44,11 +46,22 @@ The starter list was written from memory in an environment that could not reach 
 | Bulk extraction | postings whose title could be engineering | `heuristic` (rules only) | `local` = free; Claude = per call |
 | Verification | disagreements, low confidence, 5% QA sample | `none` | Claude Sonnet 5.5 |
 
-Your local models (Ollama / LM Studio):
+Your local models with Ollama on a Mac (use `qwen2.5:7b-instruct` instead on a 16 GB machine):
 
 ```bash
-ollama pull qwen2.5:7b-instruct
-export ROLESCOUT_EXTRACTOR=local ROLESCOUT_EXTRACTOR_MODEL=qwen2.5:7b-instruct
+brew install ollama
+brew services start ollama
+ollama pull qwen2.5:14b-instruct
+rolescout eval --extractor local --model qwen2.5:14b-instruct
+```
+
+RoleScout detects Ollama and sets the context window on every request (8,192 tokens, change with `ROLESCOUT_LOCAL_LLM_NUM_CTX`), so Ollama needs no configuration. Before scoring anything it checks the server is running and the model is downloaded, and tells you the exact fix if not. LM Studio and other OpenAI-compatible servers work too: set `ROLESCOUT_LOCAL_LLM_BASE_URL=http://localhost:1234/v1`.
+
+To use the local model for the real pipeline, put this in `.env`:
+
+```
+ROLESCOUT_EXTRACTOR=local
+ROLESCOUT_EXTRACTOR_MODEL=qwen2.5:14b-instruct
 ```
 
 Claude as verifier (needs `ANTHROPIC_API_KEY` or `ant auth login`; API usage is billed separately from a Claude.ai subscription):
@@ -62,10 +75,12 @@ Verifier calls use Claude's server-side refusal fallback (`fallbacks: "default"`
 Before trusting a model, measure it:
 
 ```bash
-rolescout eval                                   # rules
-rolescout eval --extractor local                 # your local model
+rolescout eval
+rolescout eval --extractor local --model qwen2.5:14b-instruct
 rolescout eval --extractor anthropic --model claude-haiku-4-5
 ```
+
+The first line scores the rules alone, the second your local model, the third a Claude model. Model runs print one line per posting as they go.
 
 Every model call is logged with tokens and dollars. `/admin` shows cost per job and verifier agreement rate.
 
@@ -96,5 +111,7 @@ Every model call is logged with tokens and dollars. `/admin` shows cost per job 
 ## Tests
 
 ```bash
-python -m pytest -q     # 93 tests: connectors, liveness, tiers, matching, auth/CSRF, digests, review regressions
+python -m pytest -q
 ```
+
+102 tests: connectors, liveness, model tiers (including the native Ollama path), matching, auth/CSRF, digests, and review regressions.

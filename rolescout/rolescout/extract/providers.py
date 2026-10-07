@@ -98,38 +98,165 @@ def _parse_json(text: str) -> dict[str, Any]:
     return value
 
 
+UNREACHABLE = (
+    "Can't reach the local model server at {root}. "
+    "If you use Ollama on a Mac, start it with: brew services start ollama "
+    "(or open the Ollama app). If you use LM Studio, start its server in the Developer tab."
+)
+
+
+def _has_model(installed: list[str], model: str) -> bool:
+    if model in installed or f"{model}:latest" in installed:
+        return True
+    return ":" not in model and any(name.split(":")[0] == model for name in installed)
+
+
 class LocalProvider:
-    """OpenAI-compatible /chat/completions (Ollama, LM Studio, llama.cpp server, vLLM)."""
+    """A model running on your own machine.
+
+    Ollama is detected automatically and called through its native /api/chat, which
+    lets RoleScout set the context window per request (Ollama's own default can be
+    enormous on Macs with lots of memory, which makes every call crawl). Any other
+    OpenAI-compatible server (LM Studio, llama.cpp, vLLM) uses /v1/chat/completions.
+    """
 
     name = "local"
 
     def __init__(self, base_url: str, model: str, api_key: str = "local", timeout: float = 180.0,
-                 client: httpx.Client | None = None):
+                 client: httpx.Client | None = None, api: str = "auto", num_ctx: int = 8192):
         self.base_url = base_url.rstrip("/")
+        self.root = self.base_url[:-3] if self.base_url.endswith("/v1") else self.base_url
         self.model = model
+        self.timeout = timeout
+        self.num_ctx = num_ctx
+        self.api = api if api in ("auto", "ollama", "openai") else "auto"
+        self.server_version: str | None = None
         self._client = client or httpx.Client(timeout=timeout, headers={"Authorization": f"Bearer {api_key}"})
         self._schema_supported: bool | None = None
 
-    def _post(self, payload: dict) -> httpx.Response:
+    # ------------------------------------------------------------------ plumbing
+    def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
         try:
-            return self._client.post(f"{self.base_url}/chat/completions", json=payload)
-        except httpx.HTTPError as exc:
+            return self._client.request(method, url, **kwargs)
+        except httpx.TimeoutException as exc:
             raise LLMError(
-                f"Can't reach the local model server at {self.base_url} ({exc}). "
-                "Is Ollama / LM Studio running?",
+                f"The local model took longer than {self.timeout:.0f}s to answer. The first call loads the "
+                "model into memory; if every call is this slow, try a smaller model.",
                 retryable=True,
             ) from exc
+        except httpx.HTTPError as exc:
+            raise LLMError(UNREACHABLE.format(root=self.root), retryable=True) from exc
 
+    def _detect(self) -> str:
+        if self.api != "auto":
+            return self.api
+        resp = self._request("GET", f"{self.root}/api/version", timeout=10)
+        api = "openai"
+        if resp.status_code == 200:
+            try:
+                data = resp.json()
+            except ValueError:
+                data = None
+            if isinstance(data, dict) and "version" in data:
+                api = "ollama"
+                self.server_version = str(data["version"])
+        self.api = api
+        return api
+
+    # ------------------------------------------------------------------ checks
+    def preflight(self) -> list[str]:
+        """Confirm the server is up and the model is there. Raises LLMError with the fix."""
+        api = self._detect()
+        if api == "ollama":
+            resp = self._request("GET", f"{self.root}/api/tags", timeout=10)
+            if resp.status_code != 200:
+                raise LLMError(f"Ollama returned HTTP {resp.status_code} when listing models: {resp.text[:200]}",
+                               retryable=True)
+            try:
+                models = resp.json().get("models") or []
+            except (ValueError, AttributeError):
+                models = []
+            installed = [m.get("name") or m.get("model") for m in models if isinstance(m, dict)]
+            installed = [n for n in installed if n]
+            if not _has_model(installed, self.model):
+                hint = f" or run with --model {installed[0]}" if installed else ""
+                raise LLMError(
+                    f"Model '{self.model}' isn't downloaded in Ollama (installed: {', '.join(installed) or 'none'}). "
+                    f"Download it with: ollama pull {self.model}{hint}"
+                )
+            version = f" {self.server_version}" if self.server_version else ""
+            return [f"Ollama{version} at {self.root}: model {self.model} ready, context window {self.num_ctx:,} tokens"]
+        notes = [f"OpenAI-compatible model server at {self.base_url}"]
+        resp = self._request("GET", f"{self.base_url}/models", timeout=10)
+        if resp.status_code == 200:
+            try:
+                ids = [m.get("id") for m in resp.json().get("data") or [] if isinstance(m, dict)]
+            except (ValueError, AttributeError):
+                ids = []
+            if ids and self.model not in ids:
+                notes.append(f"Note: the server lists {', '.join(i for i in ids[:5] if i)}; "
+                             f"'{self.model}' isn't one of them, so calls may fail")
+        return notes
+
+    # ------------------------------------------------------------------ calls
     def complete_json(self, system: str, user: str, schema: dict, schema_name: str) -> LLMResult:
+        api = self._detect()
         messages = [
             {"role": "system", "content": system},
             {"role": "user", "content": user + "\n\nRespond with a single JSON object that matches this schema:\n" + json.dumps(schema)},
         ]
-        base = {"model": self.model, "messages": messages, "temperature": 0, "stream": False}
         started = time.monotonic()
+        if api == "ollama":
+            text, in_tok, out_tok = self._ollama_chat(messages, schema)
+        else:
+            text, in_tok, out_tok = self._openai_chat(messages, schema, schema_name)
+        return LLMResult(
+            data=_parse_json(text),
+            provider=self.name,
+            model=self.model,
+            input_tokens=in_tok,
+            output_tokens=out_tok,
+            latency_ms=int((time.monotonic() - started) * 1000),
+        )
+
+    def _ollama_chat(self, messages: list[dict], schema: dict) -> tuple[str, int, int]:
+        body = {"model": self.model, "messages": messages, "stream": False,
+                "options": {"temperature": 0, "num_ctx": self.num_ctx}}
+        url = f"{self.root}/api/chat"
+        use_schema = self._schema_supported is not False
+        resp = self._request("POST", url, json={**body, "format": schema if use_schema else "json"})
+        if use_schema and resp.status_code in (400, 500) and not self._model_missing(resp):
+            # Older Ollama, or a schema its grammar converter can't handle: plain JSON mode.
+            self._schema_supported = False
+            resp = self._request("POST", url, json={**body, "format": "json"})
+        elif use_schema and resp.status_code == 200:
+            self._schema_supported = True
+        if self._model_missing(resp):
+            raise LLMError(f"Model '{self.model}' isn't downloaded in Ollama. Download it with: ollama pull {self.model}")
+        if resp.status_code != 200:
+            raise LLMError(f"Ollama returned HTTP {resp.status_code}: {resp.text[:300]}",
+                           retryable=resp.status_code >= 500)
+        try:
+            data = resp.json()
+        except ValueError as exc:
+            raise LLMError("Ollama returned a non-JSON response", retryable=True) from exc
+        text = (data.get("message") or {}).get("content") if isinstance(data, dict) else None
+        if not isinstance(text, str):
+            raise LLMError("Unexpected response shape from Ollama")
+        return text, int(data.get("prompt_eval_count") or 0), int(data.get("eval_count") or 0)
+
+    @staticmethod
+    def _model_missing(resp: httpx.Response) -> bool:
+        if resp.status_code == 404:
+            return True
+        return resp.status_code >= 400 and "not found" in resp.text.lower() and "model" in resp.text.lower()
+
+    def _openai_chat(self, messages: list[dict], schema: dict, schema_name: str) -> tuple[str, int, int]:
+        base = {"model": self.model, "messages": messages, "temperature": 0, "stream": False}
+        url = f"{self.base_url}/chat/completions"
         resp = None
         if self._schema_supported is not False:
-            resp = self._post({**base, "response_format": {
+            resp = self._request("POST", url, json={**base, "response_format": {
                 "type": "json_schema", "json_schema": {"name": schema_name, "schema": schema, "strict": True}}})
             if resp.status_code in (400, 422):
                 self._schema_supported = False
@@ -137,7 +264,7 @@ class LocalProvider:
             elif resp.status_code == 200:
                 self._schema_supported = True
         if resp is None:
-            resp = self._post({**base, "response_format": {"type": "json_object"}})
+            resp = self._request("POST", url, json={**base, "response_format": {"type": "json_object"}})
         if resp.status_code == 404:
             raise LLMError(f"Model '{self.model}' not found on the local server. Pull it first (e.g. `ollama pull {self.model}`).")
         if resp.status_code != 200:
@@ -152,14 +279,7 @@ class LocalProvider:
         except (KeyError, IndexError, TypeError) as exc:
             raise LLMError("Unexpected response shape from local model server") from exc
         usage = body.get("usage") or {}
-        return LLMResult(
-            data=_parse_json(text),
-            provider=self.name,
-            model=self.model,
-            input_tokens=int(usage.get("prompt_tokens") or 0),
-            output_tokens=int(usage.get("completion_tokens") or 0),
-            latency_ms=int((time.monotonic() - started) * 1000),
-        )
+        return text, int(usage.get("prompt_tokens") or 0), int(usage.get("completion_tokens") or 0)
 
 
 class AnthropicProvider:
@@ -239,7 +359,9 @@ def make_provider(kind: str, model: str, settings, *, effort: str | None = "low"
     if kind in ("", "none", "heuristic", "off"):
         return None
     if kind == "local":
-        return LocalProvider(settings.local_llm_base_url, model, settings.local_llm_api_key)
+        return LocalProvider(settings.local_llm_base_url, model, settings.local_llm_api_key,
+                             timeout=settings.local_llm_timeout, api=settings.local_llm_api,
+                             num_ctx=settings.local_llm_num_ctx)
     if kind in ("anthropic", "claude"):
         return AnthropicProvider(model, effort=effort)
     raise ValueError(f"Unknown model provider '{kind}'. Use heuristic, local, or anthropic.")

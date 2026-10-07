@@ -28,7 +28,7 @@ company boards ──ingest──▶ jobs ──extract──▶ job_facts ─�
 - `heuristics.py` is the ground truth for what rules see reliably: explicit title levels (Senior, Staff, II, Intern), required vs preferred years, hotel vs factory maintenance, clearance, ITAR, salary, work mode.
 - `pipeline.py` calls the bulk model, then `apply_guardrails` re-applies certain rule facts so a model can't override them (an explicit "Senior" always wins; clearance is OR'd).
 - The verifier sees the posting plus the proposed facts and returns `agree` or `corrected`. Trigger reasons are stored in `verifier_notes`, so `/admin/review` shows *why* each job was escalated.
-- `providers.py`: `LocalProvider` (any OpenAI-compatible server; tries `json_schema`, falls back to `json_object`, remembers which works) and `AnthropicProvider` (official SDK, structured outputs, refusal fallback for models that support it, effort only where supported). Every call lands in `llm_calls` with tokens and cost.
+- `providers.py`: `LocalProvider` (detects Ollama and calls its native `/api/chat` with a per-request context window, since Ollama's own default can be huge on high-memory Macs and make every call crawl; any other OpenAI-compatible server uses `/v1/chat/completions`; tries a JSON schema, falls back to plain JSON mode, remembers which works; `preflight()` checks the server and model before a run and names the fix) and `AnthropicProvider` (official SDK, structured outputs, refusal fallback for models that support it, effort only where supported). Every call lands in `llm_calls` with tokens and cost.
 
 ### Match (`matching.py`)
 

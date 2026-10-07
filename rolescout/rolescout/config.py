@@ -7,6 +7,7 @@ SQLite database, heuristic-only extraction, no email sending.
 from __future__ import annotations
 
 import os
+import re
 import secrets
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -22,7 +23,12 @@ def _load_dotenv(path: Path) -> None:
             continue
         key, _, value = line.partition("=")
         key = key.strip()
-        value = value.strip().strip('"').strip("'")
+        value = value.strip()
+        if value[:1] in ("'", '"') and value[-1:] == value[:1] and len(value) >= 2:
+            value = value[1:-1]
+        else:
+            # Unquoted values may carry a trailing comment: KEY=value   # explanation
+            value = re.split(r"\s+#", value, maxsplit=1)[0].strip()
         os.environ.setdefault(key, value)
 
 
@@ -67,6 +73,9 @@ class Settings:
     verify_confidence_below: float = 0.7
     local_llm_base_url: str = "http://localhost:11434/v1"
     local_llm_api_key: str = "local"
+    local_llm_api: str = "auto"  # auto-detects Ollama; "openai" forces /v1/chat/completions
+    local_llm_num_ctx: int = 8192
+    local_llm_timeout: float = 180.0
     llm_max_description_chars: int = 12000
     extract_batch_limit: int = 200
 
@@ -119,6 +128,9 @@ def get_settings() -> Settings:
         verify_confidence_below=_float("ROLESCOUT_VERIFY_CONFIDENCE_BELOW", Settings.verify_confidence_below),
         local_llm_base_url=os.environ.get("ROLESCOUT_LOCAL_LLM_BASE_URL", Settings.local_llm_base_url).rstrip("/"),
         local_llm_api_key=os.environ.get("ROLESCOUT_LOCAL_LLM_API_KEY", Settings.local_llm_api_key),
+        local_llm_api=os.environ.get("ROLESCOUT_LOCAL_LLM_API", Settings.local_llm_api).lower(),
+        local_llm_num_ctx=_int("ROLESCOUT_LOCAL_LLM_NUM_CTX", Settings.local_llm_num_ctx),
+        local_llm_timeout=_float("ROLESCOUT_LOCAL_LLM_TIMEOUT", Settings.local_llm_timeout),
         llm_max_description_chars=_int("ROLESCOUT_LLM_MAX_DESCRIPTION_CHARS", Settings.llm_max_description_chars),
         extract_batch_limit=_int("ROLESCOUT_EXTRACT_BATCH_LIMIT", Settings.extract_batch_limit),
         http_timeout=_float("ROLESCOUT_HTTP_TIMEOUT", Settings.http_timeout),

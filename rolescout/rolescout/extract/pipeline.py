@@ -272,8 +272,26 @@ class Extractor:
         row.verifier_notes = f"[{trigger}] {parsed.notes}".strip()[:1000]
 
     # -------------------------------------------------------------- batch
+    def preflight(self, stats: ExtractStats) -> None:
+        """If a local model server is down or missing the model, say so once and run without it."""
+        for role in ("extractor", "verifier"):
+            provider = getattr(self, role)
+            check = getattr(provider, "preflight", None)
+            if provider is None or check is None:
+                continue
+            try:
+                check()
+            except LLMError as exc:
+                stats.errors.append(f"{role} unavailable, continuing without it: {exc}")
+                if role == "extractor":
+                    stats.llm_errors += 1
+                else:
+                    stats.verify_errors += 1
+                setattr(self, role, None)
+
     def run(self, session: Session, limit: int | None = None) -> ExtractStats:
         stats = ExtractStats()
+        self.preflight(stats)
         limit = limit or self.settings.extract_batch_limit
         stmt = (
             select(Job)
