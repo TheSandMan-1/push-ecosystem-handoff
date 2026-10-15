@@ -1,0 +1,75 @@
+{% macro logo() -%}
+<svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="9" fill="var(--accent)"/><circle cx="14.5" cy="14.5" r="7" stroke="var(--accent-ink)" stroke-width="2.6"/><path d="M19.8 19.8 25 25" stroke="var(--accent-ink)" stroke-width="2.6" stroke-linecap="round"/><path d="m11.4 14.6 2.2 2.2 4-4.3" stroke="var(--accent-ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{%- endmacro %}
+
+{% macro icon(name) -%}
+{%- if name == 'check' -%}<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{%- elif name == 'alert' -%}<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 5v3.5M8 11h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.6"/></svg>
+{%- elif name == 'shield' -%}<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.8 2.8 4v3.6c0 3 2.2 5.6 5.2 6.6 3-1 5.2-3.6 5.2-6.6V4L8 1.8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="m5.6 8 1.7 1.7 3.2-3.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{%- elif name == 'bookmark' -%}<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 2.5h8v11L8 10.8 4 13.5v-11Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+{%- elif name == 'send' -%}<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 8 13.5 2.5 11 13.5 7.5 9.2 2.5 8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+{%- elif name == 'eye-off' -%}<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 2l12 12M6.6 6.7a2 2 0 0 0 2.7 2.7M4.3 4.6C3 5.5 2 6.7 1.5 8c1.2 3 4 4.7 6.5 4.7 1.2 0 2.4-.4 3.4-1M7 3.4c.3 0 .7-.1 1-.1 2.5 0 5.3 1.7 6.5 4.7-.3.8-.8 1.6-1.4 2.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+{%- elif name == 'external' -%}<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M9.5 2.5h4v4M13.5 2.5 7.5 8.5M12 9.5v3.2c0 .4-.3.8-.8.8H3.3a.8.8 0 0 1-.8-.8V4.8c0-.4.3-.8.8-.8h3.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro avatar(company) -%}
+<div class="avatar" style="background: hsl({{ company|hue }} 52% 40%)" aria-hidden="true">{{ company|initials }}</div>
+{%- endmacro %}
+
+{% macro score_badge(score) -%}
+<div class="score {{ 'mid' if score < 75 else '' }} {{ 'low' if score < 55 else '' }}" title="Match score">{{ score }}<small>match</small></div>
+{%- endmacro %}
+
+{% macro job_card(m, hide_reasons, show_excluded=False) -%}
+{% set job = m.job %}{% set f = m.facts %}
+<article class="card job" data-job="{{ job.id }}">
+  <div class="job-top">
+    {{ avatar(job.company_name) }}
+    <div class="job-main">
+      <a class="job-title" href="/app/jobs/{{ job.id }}">{{ job.title }}</a>
+      <div class="job-meta">
+        <span>{{ job.company_name }}</span>
+        {% if job.location %}<span>{{ job.location|truncate(60) }}</span>{% endif %}
+        <span>Posted {{ (job.posted_at or job.first_seen_at)|timeago }}</span>
+        {% if f and (f.salary_min or f.salary_max) %}<span>{{ salary_range(f.salary_min, f.salary_max) }}</span>{% endif %}
+      </div>
+    </div>
+    {% if not show_excluded %}{{ score_badge(m.score) }}{% endif %}
+  </div>
+  {% if f and f.summary %}<p class="job-summary">{{ f.summary }}</p>{% endif %}
+  <div class="job-tags">
+    {% if show_excluded %}<span class="tag tag-bad">{{ icon('eye-off') }} {{ m.excluded_label }}</span>{% endif %}
+    {% for r in m.reasons %}<span class="tag tag-good">{{ icon('check') }} {{ r }}</span>{% endfor %}
+    {% for c in m.cautions %}<span class="tag tag-warn">{{ icon('alert') }} {{ c }}</span>{% endfor %}
+    {% if show_excluded and f %}
+      <span class="tag">{{ SENIORITIES.get(f.seniority, f.seniority) }}</span>
+      {% if f.min_years is not none %}<span class="tag">{{ f.min_years }}+ yrs</span>{% endif %}
+      <span class="tag">{{ ROLE_FAMILIES.get(f.role_family, f.role_family) }}</span>
+    {% endif %}
+  </div>
+  <div class="job-foot">
+    {% if job.closed_at %}
+      <span class="status"><span class="dot closed"></span> Closed {{ job.closed_at|timeago }}</span>
+    {% else %}
+      <span class="status" title="Seen on the company's own careers system"><span class="dot"></span> Open · checked {{ job.last_seen_at|timeago }}</span>
+    {% endif %}
+    {% if f and f.verified_status in ('agree', 'corrected') %}<span class="tag tag-info" title="Facts double-checked by a second, stronger model">{{ icon('shield') }} Verified</span>{% endif %}
+    <div class="spacer"></div>
+    <button class="btn btn-sm {{ 'is-on' if m.user_status == 'saved' }}" data-action="saved" aria-pressed="{{ 'true' if m.user_status == 'saved' else 'false' }}">{{ icon('bookmark') }} <span>{{ 'Saved' if m.user_status == 'saved' else 'Save' }}</span></button>
+    <button class="btn btn-sm {{ 'is-on' if m.user_status == 'applied' }}" data-action="applied" aria-pressed="{{ 'true' if m.user_status == 'applied' else 'false' }}">{{ icon('send') }} <span>{{ 'Applied' if m.user_status == 'applied' else 'Mark applied' }}</span></button>
+    {% if m.user_status == 'hidden' %}
+      <button class="btn btn-sm" data-action="clear">Unhide</button>
+    {% else %}
+    <div class="menu">
+      <button class="btn btn-sm btn-ghost" data-menu aria-haspopup="true" aria-expanded="false">{{ icon('eye-off') }} Hide</button>
+      <div class="menu-pop" role="menu">
+        <div class="menu-title">Why hide it? (trains your feed)</div>
+        {% for key, label in hide_reasons.items() %}<button role="menuitem" data-action="hidden" data-reason="{{ key }}">{{ label }}</button>{% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    <a class="btn btn-sm btn-primary" href="{{ job.url }}" target="_blank" rel="noopener">Apply {{ icon('external') }}</a>
+  </div>
+</article>
+{%- endmacro %}

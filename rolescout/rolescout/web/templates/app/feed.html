@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "macros.html" import job_card %}
+{% block title %}Your matches · RoleScout{% endblock %}
+{% block content %}
+<div class="container page">
+  <div class="feed-layout">
+    <aside class="sidebar">
+      <div class="card card-pad">
+        <div class="panel-title">Your short list</div>
+        <div class="big-num">{{ match_count|number }}</div>
+        <div class="muted">roles that fit right now</div>
+        <hr style="border:0;border-top:1px solid var(--border);margin:16px 0">
+        <div class="panel-title">We hid {{ hidden_total|number }} postings</div>
+        {% if exclusions %}
+        <div class="filter-bars">
+          {% set top = exclusions[0][1] %}
+          {% for code, n in exclusions %}
+          <div class="filter-bar {{ 'active' if active_reason == code }}">
+            <a href="/app?tab=filtered&reason={{ code }}">{{ exclusion_labels.get(code, code) }}</a><span class="muted">{{ n|number }}</span>
+            <div class="bar"><span style="width: {{ (100 * n / top)|round|int }}%"></span></div>
+          </div>
+          {% endfor %}
+        </div>
+        <p class="muted" style="font-size:.84rem;margin:12px 0 0">Click a reason to audit what we hid. If we got one wrong, tell us.</p>
+        {% else %}<p class="muted">Nothing filtered yet.</p>{% endif %}
+      </div>
+      <div class="card card-pad">
+        <div class="panel-title">Freshness</div>
+        <p style="margin:0" class="muted">Company boards last checked <strong style="color:var(--text)">{{ last_ingest|timeago if last_ingest else 'not yet' }}</strong>. Closed postings drop off automatically.</p>
+      </div>
+      <a class="btn" href="/app/profile">Edit preferences</a>
+    </aside>
+
+    <section>
+      <p class="mobile-summary"><strong>{{ match_count|number }}</strong> roles fit · <a href="/app?tab=filtered">{{ hidden_total|number }} hidden, see why</a></p>
+      {% if profile_incomplete %}
+      <div class="callout">Add your field and locations to sharpen these matches.<a class="btn btn-sm" href="/app/profile">Finish setup</a></div>
+      {% endif %}
+      <nav class="tabs" aria-label="Feed sections">
+        <a href="/app" class="{{ 'active' if tab == 'matches' }}">Matches<span class="count">{{ match_count }}</span></a>
+        <a href="/app?tab=saved" class="{{ 'active' if tab == 'saved' }}">Saved<span class="count">{{ status_counts.get('saved', 0) }}</span></a>
+        <a href="/app?tab=applied" class="{{ 'active' if tab == 'applied' }}">Applied<span class="count">{{ status_counts.get('applied', 0) }}</span></a>
+        <a href="/app?tab=hidden" class="{{ 'active' if tab == 'hidden' }}">Hidden<span class="count">{{ status_counts.get('hidden', 0) }}</span></a>
+        <a href="/app?tab=filtered" class="{{ 'active' if tab == 'filtered' }}">Filtered out<span class="count">{{ hidden_total }}</span></a>
+      </nav>
+      <form class="searchbar" method="get" action="/app" role="search">
+        <input type="hidden" name="tab" value="{{ tab }}">
+        {% if active_reason %}<input type="hidden" name="reason" value="{{ active_reason }}">{% endif %}
+        <input type="search" name="q" value="{{ q }}" placeholder="Search title, company or city" aria-label="Search">
+        <button class="btn">Search</button>
+      </form>
+      {% if tab == 'filtered' %}<p class="muted" style="margin-top:-4px">These didn't make your list{% if active_reason %} because: <strong>{{ exclusion_labels.get(active_reason) }}</strong> · <a href="/app?tab=filtered">show all reasons</a>{% endif %}. Showing the {{ items|length }} most recent.</p>{% endif %}
+      <div class="job-list">
+        {% for m in items %}
+          {{ job_card(m, hide_reasons, show_excluded=(tab == 'filtered')) }}
+        {% else %}
+          <div class="card empty">
+            {% if tab == 'matches' %}
+              <h3>No matches yet</h3>
+              <p>{% if hidden_total %}Everything we found was filtered out. Try widening your level, years or locations.{% else %}We haven't pulled any postings yet. An admin needs to add company boards and run a scan.{% endif %}</p>
+              <a class="btn" href="/app/profile">Adjust preferences</a>
+            {% elif tab == 'saved' %}<h3>Nothing saved</h3><p>Hit Save on a role to keep it here.</p>
+            {% elif tab == 'applied' %}<h3>No applications tracked</h3><p>Mark roles as applied to keep a running list.</p>
+            {% elif tab == 'hidden' %}<h3>Nothing hidden</h3>
+            {% else %}<h3>Nothing filtered</h3>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

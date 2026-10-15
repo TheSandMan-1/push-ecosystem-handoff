@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}{{ status }} · RoleScout{% endblock %}
+{% block content %}
+<div class="container narrow page"><div class="card card-pad empty"><h3>{{ 'Not found' if status == 404 else 'Something went wrong' if status >= 500 else 'Not allowed' }}</h3><p>{{ detail }}</p><a class="btn" href="/app">Back to matches</a></div></div>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Preferences · RoleScout{% endblock %}
+{% block content %}
+<div class="container narrow page">
+  <div class="page-head"><div><h1>{{ 'Welcome! What are you looking for?' if welcome else 'Your preferences' }}</h1><p>We use these to filter every posting. Nothing here is shared with employers.</p></div></div>
+  <form method="post" action="/app/profile" class="stack">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+
+    <div class="card card-pad">
+      <h2>Level</h2>
+      <div class="field">
+        <label>Show me roles at these levels</label>
+        <div class="chips">
+          {% for key, label in seniorities.items() %}
+          <label class="chip-toggle"><input type="checkbox" name="target_seniorities" value="{{ key }}" {{ 'checked' if key in p.target_seniorities }}><span>{{ label }}</span></label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="field" style="max-width:280px">
+        <label for="max_years">Years of experience you have <span class="hint">(we hide roles that require more)</span></label>
+        <input id="max_years" type="number" name="max_years" min="0" max="30" value="{{ p.max_years }}">
+      </div>
+    </div>
+
+    <div class="card card-pad">
+      <h2>Field</h2>
+      <div class="field">
+        <label>Your engineering field <span class="hint">(pick all that apply)</span></label>
+        <div class="chips">{% for key, label in disciplines.items() %}<label class="chip-toggle"><input type="checkbox" name="disciplines" value="{{ key }}" {{ 'checked' if key in p.disciplines }}><span>{{ label }}</span></label>{% endfor %}</div>
+      </div>
+      <div class="field">
+        <label>Role types you're most excited about <span class="hint">(ranked higher)</span></label>
+        <div class="chips">{% for key, label in families.items() %}<label class="chip-toggle"><input type="checkbox" name="role_families" value="{{ key }}" {{ 'checked' if key in p.role_families }}><span>{{ label }}</span></label>{% endfor %}</div>
+      </div>
+      <div class="field">
+        <label>Never show these role types</label>
+        <div class="chips">{% for key, label in families.items() %}<label class="chip-toggle exclude"><input type="checkbox" name="excluded_role_families" value="{{ key }}" {{ 'checked' if key in p.excluded_role_families }}><span>{{ label }}</span></label>{% endfor %}</div>
+      </div>
+      <div class="field"><label class="check"><input type="checkbox" name="require_engineering" {{ 'checked' if p.require_engineering }}> Only real engineering roles <span class="hint">(hides technicians, recruiters, building maintenance, etc.)</span></label></div>
+    </div>
+
+    <div class="card card-pad">
+      <h2>Location</h2>
+      <div class="field">
+        <label for="locations">Cities, states or regions <span class="hint">(comma separated, e.g. San Diego, Irvine, CA)</span></label>
+        <input id="locations" type="text" name="locations" value="{{ p.locations|join(', ') }}" placeholder="Leave empty for anywhere">
+      </div>
+      <div class="field"><label class="check"><input type="checkbox" name="remote_ok" {{ 'checked' if p.remote_ok }}> Include remote roles anywhere</label></div>
+    </div>
+
+    <div class="card card-pad">
+      <h2>Dealbreakers and boosts</h2>
+      <div class="field"><label class="check"><input type="checkbox" name="exclude_clearance" {{ 'checked' if p.exclude_clearance }}> Hide roles that need a security clearance</label></div>
+      <div class="field" style="max-width:280px"><label for="salary_floor">Minimum salary <span class="hint">(only applies when pay is posted)</span></label><input id="salary_floor" type="text" inputmode="numeric" name="salary_floor" value="{{ p.salary_floor or '' }}" placeholder="e.g. 75000"></div>
+      <div class="field"><label for="include_keywords">Boost postings that mention <span class="hint">(skills or tools, comma separated)</span></label><input id="include_keywords" type="text" name="include_keywords" value="{{ p.include_keywords|join(', ') }}" placeholder="SolidWorks, GD&amp;T, Python"></div>
+      <div class="field"><label for="exclude_keywords">Hide postings whose title mentions</label><input id="exclude_keywords" type="text" name="exclude_keywords" value="{{ p.exclude_keywords|join(', ') }}" placeholder="night shift, weapons"></div>
+      <div class="field"><label for="muted_companies">Muted companies</label><input id="muted_companies" type="text" name="muted_companies" value="{{ p.muted_companies|join(', ') }}"></div>
+    </div>
+
+    <div class="card card-pad">
+      <h2>Email digest</h2>
+      <div class="field">
+        <label for="name">Your first name</label><input id="name" type="text" name="name" value="{{ user.name or '' }}" style="max-width:320px">
+      </div>
+      <div class="field">
+        <label>Send me new matches</label>
+        <div class="chips">
+          {% for key, label in [('daily','Daily'),('weekly','Weekly'),('off','Never')] %}
+          <label class="chip-toggle"><input type="radio" name="digest_frequency" value="{{ key }}" {{ 'checked' if p.digest_frequency == key }}><span>{{ label }}</span></label>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="row"><button class="btn btn-primary btn-lg">Save and show my matches</button><a class="btn btn-ghost" href="/app">Cancel</a></div>
+  </form>
+</div>
+{% endblock %}

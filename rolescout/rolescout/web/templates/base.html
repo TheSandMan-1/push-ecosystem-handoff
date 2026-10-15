@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}RoleScout{% endblock %}</title>
+<meta name="description" content="Job search for early-career engineers. Only real, open roles at your level.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/static/app.css?v={{ version }}">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<meta name="csrf-token" content="{{ csrf }}">
+</head>
+<body>
+{% from "macros.html" import logo %}
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="{{ '/app' if user else '/' }}">{{ logo() }}<span>RoleScout</span></a>
+    {% if user %}
+    <nav class="nav">
+      {% set path = request.url.path %}
+      <a href="/app" class="{{ 'active' if path == '/app' or path.startswith('/app/jobs') }}">Matches</a>
+      <a href="/app/profile" class="{{ 'active' if path == '/app/profile' }}">Preferences</a>
+      <a href="/app/digest" class="{{ 'active' if path == '/app/digest' }}">Digest</a>
+      {% if user.is_admin %}<a href="/admin" class="{{ 'active' if path.startswith('/admin') }}">Admin</a>{% endif %}
+    </nav>
+    <div class="spacer"></div>
+    <div class="user-menu">
+      <span class="hide-mobile">{{ user.name or user.email }}</span>
+      <form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn btn-sm">Log out</button></form>
+    </div>
+    {% else %}
+    <div class="spacer"></div>
+    <a class="btn btn-ghost btn-sm" href="/login">Log in</a>
+    <a class="btn btn-primary btn-sm" href="/signup">Get started</a>
+    {% endif %}
+  </div>
+</header>
+<main>
+  {% if flashes %}<div class="container">{% for f in flashes %}<div class="flash flash-{{ f.kind }}" role="status">{{ f.message }}</div>{% endfor %}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+<script src="/static/app.js?v={{ version }}" defer></script>
+</body>
+</html>

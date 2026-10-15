@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Verifier review · RoleScout{% endblock %}
+{% block content %}
+<div class="container page">
+  <div class="page-head"><div><h1>Verifier review</h1><p>Where the second-tier model checked the first pass. Corrections are your best source of prompt and rule fixes.</p></div></div>
+  <nav class="tabs">
+    {% for s, label in [('corrected','Corrected'),('agree','Agreed'),('error','Errors')] %}<a href="/admin/review?status={{ s }}" class="{{ 'active' if status == s }}">{{ label }}</a>{% endfor %}
+  </nav>
+  <div class="card table-wrap">
+    <table class="data">
+      <thead><tr><th>Job</th><th>Final facts</th><th>First pass (rules)</th><th>Verifier notes</th></tr></thead>
+      <tbody>
+      {% for f in rows %}{% set h = f.heuristic or {} %}
+        <tr>
+          <td style="min-width:220px"><a href="/app/jobs/{{ f.job_id }}"><strong>{{ f.job.title }}</strong></a><br><span class="muted">{{ f.job.company_name }} · {{ f.verified_at|timeago if f.verified_at else '' }}</span></td>
+          <td style="font-size:.84rem">{{ seniorities.get(f.seniority, f.seniority) }}<br>{{ f.min_years if f.min_years is not none else '?' }} yrs · {{ 'eng' if f.is_engineering else 'not eng' }}<br>{{ families.get(f.role_family, f.role_family) }}</td>
+          <td style="font-size:.84rem" class="muted">{{ seniorities.get(h.get('seniority'), h.get('seniority')) }}<br>{{ h.get('min_years') if h.get('min_years') is not none else '?' }} yrs · {{ 'eng' if h.get('is_engineering') else 'not eng' }}<br>{{ families.get(h.get('role_family'), h.get('role_family')) }}</td>
+          <td style="font-size:.84rem;max-width:420px">{{ f.verifier_notes or '' }}<br><span class="muted">{{ f.extractor }} → {{ f.verifier }}</span></td>
+        </tr>
+      {% else %}<tr><td colspan="4" class="muted">Nothing here yet.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
