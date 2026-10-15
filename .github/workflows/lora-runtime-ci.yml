@@ -1,0 +1,25 @@
+name: lora-runtime CI
+
+on:
+  push:
+    paths: ["lora_runtime/**", ".github/workflows/lora-runtime-ci.yml"]
+  pull_request:
+    paths: ["lora_runtime/**", ".github/workflows/lora-runtime-ci.yml"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lora_runtime
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e '.[test,peft]'
+      - name: Test
+        run: pytest -q
